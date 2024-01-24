@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/markbates/goth"
+	"github.com/breadchris/goth"
 )
 
 // Session stores data during the auth process with Lastfm.

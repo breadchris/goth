@@ -13,9 +13,9 @@ import (
 	"testing"
 
 	"github.com/gorilla/sessions"
-	"github.com/markbates/goth"
-	. "github.com/markbates/goth/gothic"
-	"github.com/markbates/goth/providers/faux"
+	"github.com/breadchris/goth"
+	. "github.com/breadchris/goth/gothic"
+	"github.com/breadchris/goth/providers/faux"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -59,9 +59,19 @@ func (p ProviderStore) Save(r *http.Request, w http.ResponseWriter, s *sessions.
 var fauxProvider goth.Provider
 
 func init() {
-	Store = NewProviderStore()
 	fauxProvider = &faux.Provider{}
-	goth.UseProviders(fauxProvider)
+}
+
+func defaultHandlerWithStore(s sessions.Store) *Handler {
+	return NewHandler(s, WithProviders(fauxProvider))
+}
+
+func defaultHandler() (*Handler, sessions.Store) {
+	key := []byte("test")
+
+	cookieStore := sessions.NewCookieStore(key)
+	cookieStore.Options.HttpOnly = true
+	return NewHandler(cookieStore, WithProviders(fauxProvider)), cookieStore
 }
 
 func Test_BeginAuthHandler(t *testing.T) {
@@ -71,9 +81,11 @@ func Test_BeginAuthHandler(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth?provider=faux", nil)
 	a.NoError(err)
 
-	BeginAuthHandler(res, req)
+	h, s := defaultHandler()
 
-	sess, err := Store.Get(req, SessionName)
+	h.BeginAuthHandler(res, req)
+
+	sess, err := s.Get(req, SessionName)
 	if err != nil {
 		t.Fatalf("error getting faux Gothic session: %v", err)
 	}
@@ -101,7 +113,9 @@ func Test_GetAuthURL(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth?provider=faux", nil)
 	a.NoError(err)
 
-	u, err := GetAuthURL(res, req)
+	h, _ := defaultHandler()
+
+	u, err := h.GetAuthURL(res, req)
 	a.NoError(err)
 
 	// Check that we get the correct auth URL with a state parameter
@@ -118,7 +132,7 @@ func Test_GetAuthURL(t *testing.T) {
 	// auth URL has a different state from the previous one.
 	req2, err := http.NewRequest("GET", "/auth?provider=faux", nil)
 	a.NoError(err)
-	url2, err := GetAuthURL(httptest.NewRecorder(), req2)
+	url2, err := h.GetAuthURL(httptest.NewRecorder(), req2)
 	a.NoError(err)
 	parsed2, err := url.Parse(url2)
 	a.NoError(err)
@@ -132,13 +146,15 @@ func Test_CompleteUserAuth(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/callback?provider=faux", nil)
 	a.NoError(err)
 
+	h, s := defaultHandler()
+
 	sess := faux.Session{Name: "Homer Simpson", Email: "homer@example.com"}
-	session, _ := Store.Get(req, SessionName)
+	session, _ := s.Get(req, SessionName)
 	session.Values["faux"] = gzipString(sess.Marshal())
 	err = session.Save(req, res)
 	a.NoError(err)
 
-	user, err := CompleteUserAuth(res, req)
+	user, err := h.CompleteUserAuth(res, req)
 	a.NoError(err)
 
 	a.Equal(user.Name, "Homer Simpson")
@@ -153,13 +169,15 @@ func Test_CompleteUserAuthWithSessionDeducedProvider(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/callback", nil)
 	a.NoError(err)
 
+	h, s := defaultHandler()
+
 	sess := faux.Session{Name: "Homer Simpson", Email: "homer@example.com"}
-	session, _ := Store.Get(req, SessionName)
+	session, _ := s.Get(req, SessionName)
 	session.Values["faux"] = gzipString(sess.Marshal())
 	err = session.Save(req, res)
 	a.NoError(err)
 
-	user, err := CompleteUserAuth(res, req)
+	user, err := h.CompleteUserAuth(res, req)
 	a.NoError(err)
 
 	a.Equal(user.Name, "Homer Simpson")
@@ -175,13 +193,15 @@ func Test_CompleteUserAuthWithContextParamProvider(t *testing.T) {
 
 	req = GetContextWithProvider(req, "faux")
 
+	h, s := defaultHandler()
+
 	sess := faux.Session{Name: "Homer Simpson", Email: "homer@example.com"}
-	session, _ := Store.Get(req, SessionName)
+	session, _ := s.Get(req, SessionName)
 	session.Values["faux"] = gzipString(sess.Marshal())
 	err = session.Save(req, res)
 	a.NoError(err)
 
-	user, err := CompleteUserAuth(res, req)
+	user, err := h.CompleteUserAuth(res, req)
 	a.NoError(err)
 
 	a.Equal(user.Name, "Homer Simpson")
@@ -195,20 +215,22 @@ func Test_Logout(t *testing.T) {
 	req, err := http.NewRequest("GET", "/auth/callback?provider=faux", nil)
 	a.NoError(err)
 
+	h, s := defaultHandler()
+
 	sess := faux.Session{Name: "Homer Simpson", Email: "homer@example.com"}
-	session, _ := Store.Get(req, SessionName)
+	session, _ := s.Get(req, SessionName)
 	session.Values["faux"] = gzipString(sess.Marshal())
 	err = session.Save(req, res)
 	a.NoError(err)
 
-	user, err := CompleteUserAuth(res, req)
+	user, err := h.CompleteUserAuth(res, req)
 	a.NoError(err)
 
 	a.Equal(user.Name, "Homer Simpson")
 	a.Equal(user.Email, "homer@example.com")
-	err = Logout(res, req)
+	err = h.Logout(res, req)
 	a.NoError(err)
-	session, _ = Store.Get(req, SessionName)
+	session, _ = s.Get(req, SessionName)
 	a.Equal(session.Values, make(map[interface{}]interface{}))
 	a.Equal(session.Options.MaxAge, -1)
 }
@@ -230,24 +252,26 @@ func Test_GetState(t *testing.T) {
 func Test_StateValidation(t *testing.T) {
 	a := assert.New(t)
 
-	Store = NewProviderStore()
 	res := httptest.NewRecorder()
 	req, err := http.NewRequest("GET", "/auth?provider=faux&state=state_REAL", nil)
 	a.NoError(err)
 
-	BeginAuthHandler(res, req)
-	session, _ := Store.Get(req, SessionName)
+	s := NewProviderStore()
+	h := defaultHandlerWithStore(s)
+
+	h.BeginAuthHandler(res, req)
+	session, _ := s.Get(req, SessionName)
 
 	// Assert that matching states will return a nil error
 	req, _ = http.NewRequest("GET", "/auth/callback?provider=faux&state=state_REAL", nil)
 	session.Save(req, res)
-	_, err = CompleteUserAuth(res, req)
+	_, err = h.CompleteUserAuth(res, req)
 	a.NoError(err)
 
 	// Assert that mismatched states will return an error
 	req, _ = http.NewRequest("GET", "/auth/callback?provider=faux&state=state_FAKE", nil)
 	session.Save(req, res)
-	_, err = CompleteUserAuth(res, req)
+	_, err = h.CompleteUserAuth(res, req)
 	a.Error(err)
 }
 

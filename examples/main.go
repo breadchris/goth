@@ -2,79 +2,90 @@ package main
 
 import (
 	"fmt"
+	"github.com/gorilla/sessions"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"sort"
 
+	"github.com/breadchris/goth"
+	"github.com/breadchris/goth/gothic"
+	"github.com/breadchris/goth/providers/amazon"
+	"github.com/breadchris/goth/providers/apple"
+	"github.com/breadchris/goth/providers/auth0"
+	"github.com/breadchris/goth/providers/azuread"
+	"github.com/breadchris/goth/providers/battlenet"
+	"github.com/breadchris/goth/providers/bitbucket"
+	"github.com/breadchris/goth/providers/box"
+	"github.com/breadchris/goth/providers/dailymotion"
+	"github.com/breadchris/goth/providers/deezer"
+	"github.com/breadchris/goth/providers/digitalocean"
+	"github.com/breadchris/goth/providers/discord"
+	"github.com/breadchris/goth/providers/dropbox"
+	"github.com/breadchris/goth/providers/eveonline"
+	"github.com/breadchris/goth/providers/facebook"
+	"github.com/breadchris/goth/providers/fitbit"
+	"github.com/breadchris/goth/providers/gitea"
+	"github.com/breadchris/goth/providers/github"
+	"github.com/breadchris/goth/providers/gitlab"
+	"github.com/breadchris/goth/providers/google"
+	"github.com/breadchris/goth/providers/gplus"
+	"github.com/breadchris/goth/providers/heroku"
+	"github.com/breadchris/goth/providers/instagram"
+	"github.com/breadchris/goth/providers/intercom"
+	"github.com/breadchris/goth/providers/kakao"
+	"github.com/breadchris/goth/providers/lastfm"
+	"github.com/breadchris/goth/providers/line"
+	"github.com/breadchris/goth/providers/linkedin"
+	"github.com/breadchris/goth/providers/mastodon"
+	"github.com/breadchris/goth/providers/meetup"
+	"github.com/breadchris/goth/providers/microsoftonline"
+	"github.com/breadchris/goth/providers/naver"
+	"github.com/breadchris/goth/providers/nextcloud"
+	"github.com/breadchris/goth/providers/okta"
+	"github.com/breadchris/goth/providers/onedrive"
+	"github.com/breadchris/goth/providers/openidConnect"
+	"github.com/breadchris/goth/providers/patreon"
+	"github.com/breadchris/goth/providers/paypal"
+	"github.com/breadchris/goth/providers/salesforce"
+	"github.com/breadchris/goth/providers/seatalk"
+	"github.com/breadchris/goth/providers/shopify"
+	"github.com/breadchris/goth/providers/slack"
+	"github.com/breadchris/goth/providers/soundcloud"
+	"github.com/breadchris/goth/providers/spotify"
+	"github.com/breadchris/goth/providers/steam"
+	"github.com/breadchris/goth/providers/strava"
+	"github.com/breadchris/goth/providers/stripe"
+	"github.com/breadchris/goth/providers/tiktok"
+	"github.com/breadchris/goth/providers/twitch"
+	"github.com/breadchris/goth/providers/twitter"
+	"github.com/breadchris/goth/providers/twitterv2"
+	"github.com/breadchris/goth/providers/typetalk"
+	"github.com/breadchris/goth/providers/uber"
+	"github.com/breadchris/goth/providers/vk"
+	"github.com/breadchris/goth/providers/wecom"
+	"github.com/breadchris/goth/providers/wepay"
+	"github.com/breadchris/goth/providers/xero"
+	"github.com/breadchris/goth/providers/yahoo"
+	"github.com/breadchris/goth/providers/yammer"
+	"github.com/breadchris/goth/providers/yandex"
+	"github.com/breadchris/goth/providers/zoom"
 	"github.com/gorilla/pat"
-	"github.com/markbates/goth"
-	"github.com/markbates/goth/gothic"
-	"github.com/markbates/goth/providers/amazon"
-	"github.com/markbates/goth/providers/apple"
-	"github.com/markbates/goth/providers/auth0"
-	"github.com/markbates/goth/providers/azuread"
-	"github.com/markbates/goth/providers/battlenet"
-	"github.com/markbates/goth/providers/bitbucket"
-	"github.com/markbates/goth/providers/box"
-	"github.com/markbates/goth/providers/dailymotion"
-	"github.com/markbates/goth/providers/deezer"
-	"github.com/markbates/goth/providers/digitalocean"
-	"github.com/markbates/goth/providers/discord"
-	"github.com/markbates/goth/providers/dropbox"
-	"github.com/markbates/goth/providers/eveonline"
-	"github.com/markbates/goth/providers/facebook"
-	"github.com/markbates/goth/providers/fitbit"
-	"github.com/markbates/goth/providers/gitea"
-	"github.com/markbates/goth/providers/github"
-	"github.com/markbates/goth/providers/gitlab"
-	"github.com/markbates/goth/providers/google"
-	"github.com/markbates/goth/providers/gplus"
-	"github.com/markbates/goth/providers/heroku"
-	"github.com/markbates/goth/providers/instagram"
-	"github.com/markbates/goth/providers/intercom"
-	"github.com/markbates/goth/providers/kakao"
-	"github.com/markbates/goth/providers/lastfm"
-	"github.com/markbates/goth/providers/line"
-	"github.com/markbates/goth/providers/linkedin"
-	"github.com/markbates/goth/providers/mastodon"
-	"github.com/markbates/goth/providers/meetup"
-	"github.com/markbates/goth/providers/microsoftonline"
-	"github.com/markbates/goth/providers/naver"
-	"github.com/markbates/goth/providers/nextcloud"
-	"github.com/markbates/goth/providers/okta"
-	"github.com/markbates/goth/providers/onedrive"
-	"github.com/markbates/goth/providers/openidConnect"
-	"github.com/markbates/goth/providers/patreon"
-	"github.com/markbates/goth/providers/paypal"
-	"github.com/markbates/goth/providers/salesforce"
-	"github.com/markbates/goth/providers/seatalk"
-	"github.com/markbates/goth/providers/shopify"
-	"github.com/markbates/goth/providers/slack"
-	"github.com/markbates/goth/providers/soundcloud"
-	"github.com/markbates/goth/providers/spotify"
-	"github.com/markbates/goth/providers/steam"
-	"github.com/markbates/goth/providers/strava"
-	"github.com/markbates/goth/providers/stripe"
-	"github.com/markbates/goth/providers/tiktok"
-	"github.com/markbates/goth/providers/twitch"
-	"github.com/markbates/goth/providers/twitter"
-	"github.com/markbates/goth/providers/twitterv2"
-	"github.com/markbates/goth/providers/typetalk"
-	"github.com/markbates/goth/providers/uber"
-	"github.com/markbates/goth/providers/vk"
-	"github.com/markbates/goth/providers/wecom"
-	"github.com/markbates/goth/providers/wepay"
-	"github.com/markbates/goth/providers/xero"
-	"github.com/markbates/goth/providers/yahoo"
-	"github.com/markbates/goth/providers/yammer"
-	"github.com/markbates/goth/providers/yandex"
-	"github.com/markbates/goth/providers/zoom"
 )
 
 func main() {
-	goth.UseProviders(
+	// OpenID Connect is based on OpenID Connect Auto Discovery URL (https://openid.net/specs/openid-connect-discovery-1_0-17.html)
+	// because the OpenID Connect provider initialize itself in the New(), it can return an error which should be handled or ignored
+	// ignore the error for now
+	oid, err := openidConnect.New(os.Getenv("OPENID_CONNECT_KEY"), os.Getenv("OPENID_CONNECT_SECRET"), "http://localhost:3000/auth/openid-connect/callback", os.Getenv("OPENID_CONNECT_DISCOVERY_URL"))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	providers := []goth.Provider{
+		oid,
 		// Use twitterv2 instead of twitter if you only have access to the Essential API Level
 		// the twitter provider uses a v1.1 API that is not available to the Essential Level
 		twitterv2.New(os.Getenv("TWITTER_KEY"), os.Getenv("TWITTER_SECRET"), "http://localhost:3000/auth/twitterv2/callback"),
@@ -149,14 +160,6 @@ func main() {
 		wecom.New(os.Getenv("WECOM_CORP_ID"), os.Getenv("WECOM_SECRET"), os.Getenv("WECOM_AGENT_ID"), "http://localhost:3000/auth/wecom/callback"),
 		zoom.New(os.Getenv("ZOOM_KEY"), os.Getenv("ZOOM_SECRET"), "http://localhost:3000/auth/zoom/callback", "read:user"),
 		patreon.New(os.Getenv("PATREON_KEY"), os.Getenv("PATREON_SECRET"), "http://localhost:3000/auth/patreon/callback"),
-	)
-
-	// OpenID Connect is based on OpenID Connect Auto Discovery URL (https://openid.net/specs/openid-connect-discovery-1_0-17.html)
-	// because the OpenID Connect provider initialize itself in the New(), it can return an error which should be handled or ignored
-	// ignore the error for now
-	openidConnect, _ := openidConnect.New(os.Getenv("OPENID_CONNECT_KEY"), os.Getenv("OPENID_CONNECT_SECRET"), "http://localhost:3000/auth/openid-connect/callback", os.Getenv("OPENID_CONNECT_DISCOVERY_URL"))
-	if openidConnect != nil {
-		goth.UseProviders(openidConnect)
 	}
 
 	m := map[string]string{
@@ -229,10 +232,16 @@ func main() {
 
 	providerIndex := &ProviderIndex{Providers: keys, ProvidersMap: m}
 
+	key := []byte(os.Getenv("SESSION_SECRET"))
+
+	cookieStore := sessions.NewCookieStore(key)
+	cookieStore.Options.HttpOnly = true
+	h := gothic.NewHandler(cookieStore, gothic.WithProviders(providers...))
+
 	p := pat.New()
 	p.Get("/auth/{provider}/callback", func(res http.ResponseWriter, req *http.Request) {
 
-		user, err := gothic.CompleteUserAuth(res, req)
+		user, err := h.CompleteUserAuth(res, req)
 		if err != nil {
 			fmt.Fprintln(res, err)
 			return
@@ -242,18 +251,18 @@ func main() {
 	})
 
 	p.Get("/logout/{provider}", func(res http.ResponseWriter, req *http.Request) {
-		gothic.Logout(res, req)
+		h.Logout(res, req)
 		res.Header().Set("Location", "/")
 		res.WriteHeader(http.StatusTemporaryRedirect)
 	})
 
 	p.Get("/auth/{provider}", func(res http.ResponseWriter, req *http.Request) {
 		// try to get the user without re-authenticating
-		if gothUser, err := gothic.CompleteUserAuth(res, req); err == nil {
+		if gothUser, err := h.CompleteUserAuth(res, req); err == nil {
 			t, _ := template.New("foo").Parse(userTemplate)
 			t.Execute(res, gothUser)
 		} else {
-			gothic.BeginAuthHandler(res, req)
+			h.BeginAuthHandler(res, req)
 		}
 	})
 

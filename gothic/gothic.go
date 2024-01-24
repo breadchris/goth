@@ -3,7 +3,7 @@ Package gothic wraps common behaviour when using Goth. This makes it quick, and 
 and running with Goth. Of course, if you want complete control over how things flow, in regard
 to the authentication process, feel free and use Goth directly.
 
-See https://github.com/markbates/goth/blob/master/examples/main.go to see this in action.
+See https://github.com/breadchris/goth/blob/master/examples/main.go to see this in action.
 */
 package gothic
 
@@ -19,36 +19,55 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
-	"github.com/markbates/goth"
+	"github.com/breadchris/goth"
 )
 
 // SessionName is the key used to access the session store.
 const SessionName = "_gothic_session"
-
-// Store can/should be set by applications using gothic. The default is a cookie store.
-var Store sessions.Store
-var defaultStore sessions.Store
-
-var keySet = false
 
 type key int
 
 // ProviderParamKey can be used as a key in context when passing in a provider
 const ProviderParamKey key = iota
 
-func init() {
-	key := []byte(os.Getenv("SESSION_SECRET"))
-	keySet = len(key) != 0
+//func init() {
+//	key := []byte(os.Getenv("SESSION_SECRET"))
+//	keySet = len(key) != 0
+//
+//	cookieStore := sessions.NewCookieStore(key)
+//	cookieStore.Options.HttpOnly = true
+//	Store = cookieStore
+//	defaultStore = Store
+//}
 
-	cookieStore := sessions.NewCookieStore(key)
-	cookieStore.Options.HttpOnly = true
-	Store = cookieStore
-	defaultStore = Store
+type Handler struct {
+	store     sessions.Store
+	providers goth.Providers
+}
+
+type Option func(*Handler)
+
+func WithProviders(providers ...goth.Provider) Option {
+	return func(h *Handler) {
+		for _, provider := range providers {
+			h.providers[provider.Name()] = provider
+		}
+	}
+}
+
+func NewHandler(store sessions.Store, o ...Option) *Handler {
+	h := &Handler{
+		store:     store,
+		providers: make(goth.Providers),
+	}
+	for _, opt := range o {
+		opt(h)
+	}
+	return h
 }
 
 /*
@@ -59,10 +78,10 @@ as either "provider" or ":provider".
 BeginAuthHandler will redirect the user to the appropriate authentication end-point
 for the requested provider.
 
-See https://github.com/markbates/goth/examples/main.go to see this in action.
+See https://github.com/breadchris/goth/examples/main.go to see this in action.
 */
-func BeginAuthHandler(res http.ResponseWriter, req *http.Request) {
-	url, err := GetAuthURL(res, req)
+func (s *Handler) BeginAuthHandler(res http.ResponseWriter, req *http.Request) {
+	url, err := s.GetAuthURL(res, req)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintln(res, err)
@@ -116,18 +135,14 @@ as either "provider" or ":provider".
 I would recommend using the BeginAuthHandler instead of doing all of these steps
 yourself, but that's entirely up to you.
 */
-func GetAuthURL(res http.ResponseWriter, req *http.Request) (string, error) {
-	if !keySet && defaultStore == Store {
-		fmt.Println("goth/gothic: no SESSION_SECRET environment variable is set. The default cookie store is not available and any calls will fail. Ignore this warning if you are using a different store.")
-	}
-
-	providerName, err := GetProviderName(req)
+func (s *Handler) GetAuthURL(res http.ResponseWriter, req *http.Request) (string, error) {
+	providerName, err := s.GetProviderName(req)
 	if err != nil {
 		return "", err
 	}
 
-	provider, err := goth.GetProvider(providerName)
-	if err != nil {
+	provider, ok := s.providers[providerName]
+	if !ok {
 		return "", err
 	}
 	sess, err := provider.BeginAuth(SetState(req))
@@ -140,7 +155,7 @@ func GetAuthURL(res http.ResponseWriter, req *http.Request) (string, error) {
 		return "", err
 	}
 
-	err = StoreInSession(providerName, sess.Marshal(), req, res)
+	err = s.StoreInSession(providerName, sess.Marshal(), req, res)
 
 	if err != nil {
 		return "", err
@@ -156,28 +171,24 @@ process and fetches all the basic information about the user from the provider.
 It expects to be able to get the name of the provider from the query parameters
 as either "provider" or ":provider".
 
-See https://github.com/markbates/goth/examples/main.go to see this in action.
+See https://github.com/breadchris/goth/examples/main.go to see this in action.
 */
-var CompleteUserAuth = func(res http.ResponseWriter, req *http.Request) (goth.User, error) {
-	if !keySet && defaultStore == Store {
-		fmt.Println("goth/gothic: no SESSION_SECRET environment variable is set. The default cookie store is not available and any calls will fail. Ignore this warning if you are using a different store.")
-	}
-
-	providerName, err := GetProviderName(req)
+func (s *Handler) CompleteUserAuth(res http.ResponseWriter, req *http.Request) (goth.User, error) {
+	providerName, err := s.GetProviderName(req)
 	if err != nil {
 		return goth.User{}, err
 	}
 
-	provider, err := goth.GetProvider(providerName)
-	if err != nil {
-		return goth.User{}, err
+	provider, ok := s.providers[providerName]
+	if !ok {
+		return goth.User{}, fmt.Errorf("could not find provider %s", providerName)
 	}
 
-	value, err := GetFromSession(providerName, req)
+	value, err := s.GetFromSession(providerName, req)
 	if err != nil {
 		return goth.User{}, err
 	}
-	defer Logout(res, req)
+	defer s.Logout(res, req)
 	sess, err := provider.UnmarshalSession(value)
 	if err != nil {
 		return goth.User{}, err
@@ -206,7 +217,7 @@ var CompleteUserAuth = func(res http.ResponseWriter, req *http.Request) (goth.Us
 		return goth.User{}, err
 	}
 
-	err = StoreInSession(providerName, sess.Marshal(), req, res)
+	err = s.StoreInSession(providerName, sess.Marshal(), req, res)
 
 	if err != nil {
 		return goth.User{}, err
@@ -239,8 +250,8 @@ func validateState(req *http.Request, sess goth.Session) error {
 }
 
 // Logout invalidates a user session.
-func Logout(res http.ResponseWriter, req *http.Request) error {
-	session, err := Store.Get(req, SessionName)
+func (s *Handler) Logout(res http.ResponseWriter, req *http.Request) error {
+	session, err := s.store.Get(req, SessionName)
 	if err != nil {
 		return err
 	}
@@ -258,9 +269,7 @@ func Logout(res http.ResponseWriter, req *http.Request) error {
 // the URL query string. If you provide it in a different way,
 // assign your own function to this variable that returns the provider
 // name for your request.
-var GetProviderName = getProviderName
-
-func getProviderName(req *http.Request) (string, error) {
+func (s *Handler) GetProviderName(req *http.Request) (string, error) {
 
 	// try to get it from the url param "provider"
 	if p := req.URL.Query().Get("provider"); p != "" {
@@ -288,9 +297,8 @@ func getProviderName(req *http.Request) (string, error) {
 	}
 
 	// As a fallback, loop over the used providers, if we already have a valid session for any provider (ie. user has already begun authentication with a provider), then return that provider name
-	providers := goth.GetProviders()
-	session, _ := Store.Get(req, SessionName)
-	for _, provider := range providers {
+	session, _ := s.store.Get(req, SessionName)
+	for _, provider := range s.providers {
 		p := provider.Name()
 		value := session.Values[p]
 		if _, ok := value.(string); ok {
@@ -308,8 +316,8 @@ func GetContextWithProvider(req *http.Request, provider string) *http.Request {
 }
 
 // StoreInSession stores a specified key/value pair in the session.
-func StoreInSession(key string, value string, req *http.Request, res http.ResponseWriter) error {
-	session, _ := Store.New(req, SessionName)
+func (s *Handler) StoreInSession(key string, value string, req *http.Request, res http.ResponseWriter) error {
+	session, _ := s.store.New(req, SessionName)
 
 	if err := updateSessionValue(session, key, value); err != nil {
 		return err
@@ -320,8 +328,8 @@ func StoreInSession(key string, value string, req *http.Request, res http.Respon
 
 // GetFromSession retrieves a previously-stored value from the session.
 // If no value has previously been stored at the specified key, it will return an error.
-func GetFromSession(key string, req *http.Request) (string, error) {
-	session, _ := Store.Get(req, SessionName)
+func (s *Handler) GetFromSession(key string, req *http.Request) (string, error) {
+	session, _ := s.store.Get(req, SessionName)
 	value, err := getSessionValue(session, key)
 	if err != nil {
 		return "", errors.New("could not find a matching session for this request")
