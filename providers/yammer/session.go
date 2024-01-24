@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/breadchris/goth"
+	"github.com/markbates/goth"
 )
 
 // Session stores data during the auth process with Yammer.

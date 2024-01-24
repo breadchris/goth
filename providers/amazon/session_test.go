@@ -3,8 +3,8 @@ package amazon_test
 import (
 	"testing"
 
-	"github.com/breadchris/goth"
-	"github.com/breadchris/goth/providers/amazon"
+	"github.com/markbates/goth"
+	"github.com/markbates/goth/providers/amazon"
 	"github.com/stretchr/testify/assert"
 )
 

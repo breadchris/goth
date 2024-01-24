@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/jarcoal/httpmock"
-	"github.com/breadchris/goth"
-	"github.com/breadchris/goth/providers/auth0"
+	"github.com/markbates/goth"
+	"github.com/markbates/goth/providers/auth0"
 	"github.com/stretchr/testify/assert"
 )
 

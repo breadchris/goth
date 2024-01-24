@@ -2,7 +2,7 @@ package reddit
 
 import (
 	"encoding/json"
-	"github.com/breadchris/goth"
+	"github.com/markbates/goth"
 	"golang.org/x/oauth2"
 	"net/http"
 	"net/http/httptest"

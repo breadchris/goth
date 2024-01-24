@@ -12,7 +12,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/breadchris/goth"
+	"github.com/markbates/goth"
 	"golang.org/x/oauth2"
 )
 

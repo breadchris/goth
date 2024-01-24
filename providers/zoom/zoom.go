@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/breadchris/goth"
+	"github.com/markbates/goth"
 )
 
 var (

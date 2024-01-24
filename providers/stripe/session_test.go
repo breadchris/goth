@@ -3,8 +3,8 @@ package stripe_test
 import (
 	"testing"
 
-	"github.com/breadchris/goth"
-	"github.com/breadchris/goth/providers/stripe"
+	"github.com/markbates/goth"
+	"github.com/markbates/goth/providers/stripe"
 	"github.com/stretchr/testify/assert"
 )
 

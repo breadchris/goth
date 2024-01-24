@@ -3,7 +3,7 @@ package gplus
 import (
 	"testing"
 
-	"github.com/breadchris/goth"
+	"github.com/markbates/goth"
 	"github.com/stretchr/testify/assert"
 )
 

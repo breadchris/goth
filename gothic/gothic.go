@@ -3,7 +3,7 @@ Package gothic wraps common behaviour when using Goth. This makes it quick, and 
 and running with Goth. Of course, if you want complete control over how things flow, in regard
 to the authentication process, feel free and use Goth directly.
 
-See https://github.com/breadchris/goth/blob/master/examples/main.go to see this in action.
+See https://github.com/markbates/goth/blob/master/examples/main.go to see this in action.
 */
 package gothic
 
@@ -23,7 +23,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
-	"github.com/breadchris/goth"
+	"github.com/markbates/goth"
 )
 
 // SessionName is the key used to access the session store.
@@ -78,7 +78,7 @@ as either "provider" or ":provider".
 BeginAuthHandler will redirect the user to the appropriate authentication end-point
 for the requested provider.
 
-See https://github.com/breadchris/goth/examples/main.go to see this in action.
+See https://github.com/markbates/goth/examples/main.go to see this in action.
 */
 func (s *Handler) BeginAuthHandler(res http.ResponseWriter, req *http.Request) {
 	url, err := s.GetAuthURL(res, req)
@@ -171,7 +171,7 @@ process and fetches all the basic information about the user from the provider.
 It expects to be able to get the name of the provider from the query parameters
 as either "provider" or ":provider".
 
-See https://github.com/breadchris/goth/examples/main.go to see this in action.
+See https://github.com/markbates/goth/examples/main.go to see this in action.
 */
 func (s *Handler) CompleteUserAuth(res http.ResponseWriter, req *http.Request) (goth.User, error) {
 	providerName, err := s.GetProviderName(req)

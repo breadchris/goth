@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/breadchris/goth/providers/digitalocean"
+	"github.com/markbates/goth/providers/digitalocean"
 	"github.com/stretchr/testify/assert"
 )
 
